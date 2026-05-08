@@ -1,9 +1,10 @@
+import { Suspense } from 'react'
 import LoginForm from '@/components/auth/LoginForm'
 
 export default function LoginPage() {
-  return <LoginForm variant="passenger" />
+  return (
+    <Suspense fallback={null}>
+      <LoginForm variant="passenger" />
+    </Suspense>
+  )
 }
-
-
-
-

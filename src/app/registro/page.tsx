@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -239,7 +239,9 @@ export default function RegistroPage() {
           <div className="flex-1 h-px bg-gray-200" />
         </div>
 
-        <GoogleButton label="Registrarse con Google" />
+        <Suspense fallback={null}>
+          <GoogleButton label="Registrarse con Google" />
+        </Suspense>
 
         {/* Login link */}
         <p className="mt-6 text-sm text-gray-500">
