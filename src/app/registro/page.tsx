@@ -1,4 +1,13 @@
+'use client'
+
 import Link from 'next/link'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { createClient } from '@/lib/supabase/client'
+import GoogleButton from '@/components/auth/GoogleButton'
 
 function RutaECLogo() {
   return (
@@ -10,7 +19,72 @@ function RutaECLogo() {
   )
 }
 
+const registroSchema = z
+  .object({
+    nombre: z.string().trim().min(1, { error: 'Ingresa tu nombre' }),
+    apellido: z.string().trim().min(1, { error: 'Ingresa tu apellido' }),
+    email: z.email({ error: 'Ingresa un correo válido' }).trim(),
+    telefono: z.string().trim().min(7, { error: 'Ingresa un teléfono válido' }),
+    password: z.string().min(8, { error: 'Mínimo 8 caracteres' }),
+    confirmPassword: z.string(),
+    acepta: z.literal(true, { error: 'Debes aceptar los términos' }),
+  })
+  .refine((v) => v.password === v.confirmPassword, {
+    message: 'Las contraseñas no coinciden',
+    path: ['confirmPassword'],
+  })
+
+type RegistroForm = z.infer<typeof registroSchema>
+
+const inputClass =
+  'w-full border border-gray-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition'
+const errorClass = 'text-xs text-red-600 mt-1'
+
 export default function RegistroPage() {
+  const router = useRouter()
+  const [serverError, setServerError] = useState<string | null>(null)
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<RegistroForm>({
+    resolver: zodResolver(registroSchema),
+    defaultValues: {
+      nombre: '',
+      apellido: '',
+      email: '',
+      telefono: '',
+      password: '',
+      confirmPassword: '',
+      acepta: false as unknown as true,
+    },
+  })
+
+  const onSubmit = async (values: RegistroForm) => {
+    setServerError(null)
+
+    const supabase = createClient()
+    const { error } = await supabase.auth.signUp({
+      email: values.email,
+      password: values.password,
+      options: {
+        data: {
+          first_name: values.nombre,
+          last_name: values.apellido,
+          phone: values.telefono,
+        },
+      },
+    })
+
+    if (error) {
+      setServerError(error.message)
+      return
+    }
+
+    router.push('/perfil')
+    router.refresh()
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-white">
       {/* Back link */}
@@ -32,7 +106,7 @@ export default function RegistroPage() {
         </div>
 
         {/* Form */}
-        <form className="w-full flex flex-col gap-4">
+        <form className="w-full flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className="flex gap-3">
             <div className="flex flex-col gap-1.5 flex-1">
               <label htmlFor="nombre" className="text-sm font-medium text-gray-700">
@@ -43,8 +117,10 @@ export default function RegistroPage() {
                 type="text"
                 autoComplete="given-name"
                 placeholder="Juan"
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition"
+                className={inputClass}
+                {...register('nombre')}
               />
+              {errors.nombre && <p className={errorClass}>{errors.nombre.message}</p>}
             </div>
             <div className="flex flex-col gap-1.5 flex-1">
               <label htmlFor="apellido" className="text-sm font-medium text-gray-700">
@@ -55,8 +131,10 @@ export default function RegistroPage() {
                 type="text"
                 autoComplete="family-name"
                 placeholder="Pérez"
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition"
+                className={inputClass}
+                {...register('apellido')}
               />
+              {errors.apellido && <p className={errorClass}>{errors.apellido.message}</p>}
             </div>
           </div>
 
@@ -69,8 +147,10 @@ export default function RegistroPage() {
               type="email"
               autoComplete="email"
               placeholder="tu@correo.com"
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition"
+              className={inputClass}
+              {...register('email')}
             />
+            {errors.email && <p className={errorClass}>{errors.email.message}</p>}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -82,8 +162,10 @@ export default function RegistroPage() {
               type="tel"
               autoComplete="tel"
               placeholder="+593 99 000 0000"
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition"
+              className={inputClass}
+              {...register('telefono')}
             />
+            {errors.telefono && <p className={errorClass}>{errors.telefono.message}</p>}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -95,8 +177,10 @@ export default function RegistroPage() {
               type="password"
               autoComplete="new-password"
               placeholder="Mínimo 8 caracteres"
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition"
+              className={inputClass}
+              {...register('password')}
             />
+            {errors.password && <p className={errorClass}>{errors.password.message}</p>}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -108,13 +192,17 @@ export default function RegistroPage() {
               type="password"
               autoComplete="new-password"
               placeholder="Repite tu contraseña"
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition"
+              className={inputClass}
+              {...register('confirmPassword')}
             />
+            {errors.confirmPassword && (
+              <p className={errorClass}>{errors.confirmPassword.message}</p>
+            )}
           </div>
 
           {/* Terms */}
           <label className="flex items-start gap-2.5 cursor-pointer">
-            <input type="checkbox" className="mt-0.5 accent-orange-500" />
+            <input type="checkbox" className="mt-0.5 accent-orange-500" {...register('acepta')} />
             <span className="text-xs text-gray-500 leading-relaxed">
               Acepto los{' '}
               <Link href="/terminos" className="font-medium underline" style={{ color: '#F97316' }}>
@@ -126,13 +214,21 @@ export default function RegistroPage() {
               </Link>
             </span>
           </label>
+          {errors.acepta && <p className={errorClass}>{errors.acepta.message}</p>}
+
+          {serverError && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+              {serverError}
+            </div>
+          )}
 
           <button
             type="submit"
-            className="w-full rounded-full py-3.5 font-bold text-white text-sm tracking-widest uppercase mt-1"
+            disabled={isSubmitting}
+            className="w-full rounded-full py-3.5 font-bold text-white text-sm tracking-widest uppercase mt-1 disabled:opacity-60"
             style={{ backgroundColor: '#F97316' }}
           >
-            Crear Cuenta
+            {isSubmitting ? 'Creando...' : 'Crear Cuenta'}
           </button>
         </form>
 
@@ -143,16 +239,7 @@ export default function RegistroPage() {
           <div className="flex-1 h-px bg-gray-200" />
         </div>
 
-        {/* Google button */}
-        <button className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded-xl py-3 text-sm font-medium text-gray-700">
-          <svg width="18" height="18" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-          </svg>
-          Continuar con Google
-        </button>
+        <GoogleButton label="Registrarse con Google" />
 
         {/* Login link */}
         <p className="mt-6 text-sm text-gray-500">
